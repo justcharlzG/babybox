@@ -3,18 +3,18 @@
     "id": "where-to-play",
     "title": "去哪玩选择器",
     "icon": "Map",
-    "url": "/tools/play.html"
+    "url": "./tools/play.html"
   },
   {
     "id": "english-materials",
     "title": "英语早教资料",
     "icon": "BookOpen",
-    "url": "/tools/english.html"
+    "url": "./tools/english.html"
   },
   {
     "id": "kids-diet",
     "title": "儿童饮食",
     "icon": "Utensils",
-    "url": "/tools/diet.html"
+    "url": "./tools/diet.html"
   }
 ]
