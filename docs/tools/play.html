@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>苏州奶爸出行助手 v3.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeInUp 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-100 flex flex-col items-center justify-center min-h-screen p-4 font-sans text-slate-800">
+
+    <div class="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 text-center relative overflow-hidden">
+        <div class="text-indigo-600 font-bold text-xs tracking-widest uppercase mb-2">Suzhou Dad's Guide</div>
+        <h1 class="text-2xl font-black mb-8">今天带娃去哪玩？</h1>
+
+        <div id="display-area" class="py-8 mb-8 bg-slate-50 rounded-[2rem] border border-slate-100 min-h-[220px] flex flex-col justify-center transition-all">
+            <div id="result-title" class="text-slate-400 text-sm mb-2 font-medium">点击下方按钮开始决策</div>
+            <div id="result-place" class="text-3xl font-black px-4 leading-tight mb-3">---</div>
+            <div id="result-type" class="text-[10px] bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full inline-block mx-auto mb-4 font-bold"></div>
+            
+            <div id="activity-box" class="hidden px-6">
+                <div class="h-[1px] bg-slate-200 w-full mb-3"></div>
+                <p class="text-xs text-slate-400 mb-2">✨ 推荐活动：</p>
+                <div id="result-activities" class="text-sm text-slate-600 font-medium leading-relaxed"></div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+            <div class="flex gap-3">
+                <button onclick="pickLocation('today')" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-5 rounded-2xl shadow-lg shadow-emerald-100 transition-all active:scale-95 text-lg">
+                    📅 今天去哪
+                </button>
+                <button onclick="pickLocation('weekend')" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 rounded-2xl shadow-lg shadow-indigo-100 transition-all active:scale-95 text-lg">
+                    🌈 周末去哪
+                </button>
+            </div>
+            
+            <button id="amap-btn" onclick="openAMap()" class="hidden w-full bg-white border-2 border-blue-500 text-blue-500 font-bold py-4 rounded-2xl transition-all active:scale-95 text-base flex items-center justify-center gap-2 mt-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                导航去这里
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentPlace = "";
+
+        // 详细的地点与活动配置
+        const locationPool = {
+            "小区周边": {
+                "楼下": "散步、滑滑梯",
+                "郭巷菜市场": "买菜、顺便遛娃、感受烟火气",
+                "义乌小商品市场": "逛小商品、买玩具、日常采购",
+                "彩虹公园": "散步、遛娃、滑滑梯、健身",
+                "尹山湖运动公园": "挖沙、滑梯、攀爬网、骑行、环湖散步、野餐、放风筝",
+                "尹山湖公园（环湖步道）": "环湖散步、骑行、看湖景、露营、发呆",
+                "尹山湖美术馆": "看展、版画体验、艺术启蒙、盖章打卡",
+                "尹山湖歌林公园": "三层滑梯、小火车、萌宠投喂、捞鱼、室内乐园、攀岩、购物吃饭",
+                "长申游乐园": "室内儿童乐园、低龄宝宝放电、亲子互动",
+                "小黄鸭主题乐园": "无动力设施、旋转木马、小火车、萌宠、亲子活动",
+                "独墅湖生态公园": "水杉林、散步、骑行、野餐、看湖景",
+                "宝带桥公园": "逛古桥、运河步道、散步、健身、文化打卡",
+                "澹台湖公园": "沙池、滑梯、攀爬、内湖散步、亲子游玩"
+            },
+            "苏州市内": {
+            "苏州博物馆本馆": "看贝聿铭建筑、忠王府古建筑、苏式园林精髓、吹空调看展",
+            "苏州博物馆西馆": "儿童探索馆互动遛娃、看苏作工艺、国际合作展、免票高质",
+            "金鸡湖城市广场": "看亚洲最大音乐喷泉、东方之门大秋裤打卡、环湖骑行、赏湖景",
+            "独墅湖白鹭园": "看网红水边教堂、水杉林步道、湖边落日、草坪露营、骑行",
+            "平江路历史街区": "逛苏州最老街道、路边听评弹、看小桥流水、探访老房子巷子",
+            "狮山公园": "爬狮子山看日落、看高科技音乐喷泉、超大绿化跑道、遛娃健身",
+            "苏州第二图书馆": "少儿图书馆看绘本、全自动存取书演示、现代化阅读空间、吹空调",
+            "山塘街（外围步道）": "夜游看红灯笼夜景、沿河散步拍照、体验老苏州烟火气息",
+            "虎丘湿地公园": "看壮观水杉林、大草坪野餐露营、骑行、看黑天鹅、拍森系大片",
+            "御窑金砖博物馆": "网红走廊打卡、看古代金砖遗址、了解皇家造砖工艺、亲子科普",
+            "白塘生态植物园": "大型无动力儿童乐园、看四季花海、环湖徒步、大草坪遛娃",
+            "吴文化博物馆": "看宝带桥全景、互动式考古体验、了解吴地历史、免预约看展",
+            "苏州丝绸博物馆": "看蚕宝宝吐丝、古代织布机表演、了解丝绸之路、亲子科普",
+            "石湖景区北区": "跨越古桥、看石湖串月、远眺上方山、大草坪野餐、环湖骑行",
+            "东沙湖生态公园": "走红色栈桥、湿地观鸟、慢行步道、亲子徒步、找寻白鹭",
+            "尹山湖公园": "环湖塑胶跑道、看湖景、露营野餐、看日落、遛娃健身",
+            "苏州考古博物馆": "看下沉式广场、了解两千五百年建城史、石器玉器互动展",
+            "旺山步道": "走叆叇岭、逛茶园、竹林漫步、森林吸氧、带娃走亲子小环线",
+            "苏州美术馆": "看高水平画展、颜文樑纪念馆打卡、艺术熏陶、免票室内避暑",
+            "彩石湖公园": "看科技城网红叠水台阶、玩水、玩沙、看湖景、露营发呆",
+            "金水湾栈桥": "看金鸡湖全景、走曲线长桥、拍摩天轮地标、晚间散步",
+            "莲池湖公园": "赏荷花、看禅意建筑、超长环湖步道、骑行漫步",
+            "云杉湖公园": "看茂密云杉林、野餐、安静遛娃、人少景美适合放空",
+            "潜龙渠公园": "大型无动力滑梯组、玩沙、喷泉打卡、环湖健步走",
+            "阳澄湖半岛环湖道": "专业骑行线、看湖光山色、野餐、漫步感受大自然",
+            "桂花公园": "玩沙坑、滑梯、看护城河船只、秋季赏桂花、城墙根散步",
+            "东园": "超大草坪、看护城河全景、园林式步道、亲子野餐、喂鱼",
+            "中央公园（园区）": "远眺东方之门、市民运动场、老牌遛娃乐园、草坪放风筝",
+            "苏州公园（大公园）": "老苏州情怀、玩复古滑梯、看老建筑、市井健身、遛娃",
+            "运河体育公园": "玩滑板泵道、足球场健身、看运河货船、儿童器械区",
+            "桐泾公园": "大型儿童游乐场、赏梅、晨练健身、亲子周末休闲",
+            "百花洲公园": "看古胥门、城墙根散步、看古戏台、感受古城墙韵味",
+            "澹台湖公园": "大型沙池乐园、攀爬网、看运河落日、带娃跑圈",
+            "青剑湖公园": "环湖骑行、沙池滑梯遛娃、看晚霞、家庭聚会",
+            "五龙山郊野公园": "小众爬山、森林氧吧徒步、呼吸新鲜空气、免费停车",
+            "小茅山公园": "爬山健身、玩大型滑梯、社区社交、登高望远",
+            "横山公园": "登山步道、看风景、市民晨练、清静遛娃",
+            "沙湖生态公园": "看水杉林、湿地景观、带娃观鸟、静心散步",
+            "方洲公园": "儿童游乐区、看花海、社区遛娃、跑步健身",
+            "金鸡湖湖滨公园": "大草坪、沿湖步道、远眺地标、遛娃、看日落",
+            "独墅湖生态公园": "露营、花海、教堂背景、骑行、野餐、人少景美",
+            "苏州青少年科技馆": "VR互动体验、物理化学科普展厅、机器人表演、需抢票",
+            "苏州市名人馆": "看苏州历代名人生平、多媒体互动展、涨知识",
+            "苏州戏曲博物馆": "看古戏台建筑、昆曲评弹科普、中式庭院打卡",
+            "苏州碑刻博物馆": "看四大宋碑、文庙古建筑、看银杏、感受儒家文化",
+            "苏州丝绸博物馆（北寺塔站）": "看真蚕宝宝、织布机运作、丝绸文化研究、免票入内",
+            "苏州市党史馆": "看红色历史、了解苏州近代发展、主题教育",
+            "吴作人艺术馆": "看书画展、闹中取静、艺术审美启蒙、免费开放",
+            "颜文樑纪念馆": "看希腊式建筑风格、了解美术史、拍照很出片",
+            "章太炎故居": "逛名人故居、看老房子结构、书斋文化体验",
+            "杭鸣时粉画艺术馆": "欣赏细腻粉画作品、艺术交流、小众安静",
+            "苏州城墙博物馆": "在相门城墙肚子里看历史、登城墙俯瞰、免费打卡",
+            "苏州医药博物馆": "看中医药历史、古宅、了解苏派中医文化",
+            "苏州金融博物馆": "李公堤打卡、看货币演变、互动式理财小科普",
+            "五卅路纪念碑": "缅怀历史、看欧式红砖建筑、街道漫步",
+            "双塔市集": "看网红菜场、买文创产品、拍艺术装置、吃地道苏式小吃",
+            "斜塘老街": "看仿古建筑灯光、人少景美、带娃漫步、拍照打卡",
+            "西中市": "民国风建筑打卡、老字号美食探店、感受地道苏州生活",
+            "淮海街": "看日式招牌夜景、拍赛博朋克照片、感受热闹氛围",
+            "十全街": "逛网红文创店、看古桥、感受苏州潮人聚集地",
+            "葑门横街": "逛最接地气的老苏州菜场、买时令特产、感受烟火气",
+            "南门码头": "看货船往来、护城河边散步、感受运河文化",
+            "皮市街": "逛花鸟鱼虫市场、买多肉、带娃看小动物、感受市井气",
+            "桃花坞街区": "看年画艺术、唐寅故居遗址打卡、文化寻根",
+            "容创1908文创园": "老厂房改造打卡、拍工业风照片、周末市集散步",
+            "蓝·SPORT文创园": "拍亮眼涂鸦墙、运动场打卡、时尚艺术街区",
+            "定慧寺巷": "看双塔、买罗汉萝卜、逛安静的古巷、吃苏式面",
+            "阊门城墙": "登城墙看“先有阊门再有苏州”、远眺护城河、古迹寻踪",
+            "胥门城墙": "看古城门地标、散步、参加端午民俗活动、打卡",
+            "李公堤": "看湖中建筑群、逛画廊、金鸡湖最美湖岸线漫步",
+            "楼下": "散步、滑滑梯、社区社交、快速放电",
+            "郭巷菜市场": "买菜、顺便遛娃、感受烟火气、看各种时令鲜货",
+            "义乌小商品市场": "逛小商品、买低价玩具、日常采购、感受淘宝乐趣",
+            "彩虹公园": "散步、遛娃、滑滑梯、健身、社区小型游乐区",
+            "尹山湖运动公园": "挖沙、滑梯、攀爬网、骑行、环湖散步、野餐、放风筝",
+            "尹山湖公园（环湖步道）": "环湖散步、骑行、看湖景、露营、发呆、家庭健身",
+            "尹山湖美术馆": "看精品版画展、艺术启蒙、盖章打卡、室内清静",
+            "尹山湖歌林公园": "三层免费滑梯、萌宠投喂、看小火车、室内购物吃饭避暑",
+            "长申游乐园": "超市里的免费儿童角、低龄宝宝快速放电、亲子互动",
+            "苏州中心商场6楼": "看金鸡湖全景、吹空调遛娃、观景平台拍照、避雨避暑",
+            "诚品书店": "看高品质绘本、台阶坐着看书、文创产品艺术启蒙",
+            "兆佳巷邻里中心": "大型无动力滑梯、社区沙池、爬爬架、遛娃天花板",
+            "奥体中心户外区": "玩滑梯、玩沙、攀爬网、看运动场、免费大型遛娃场",
+            "永旺梦乐城": "室内小滑梯、母婴室极佳、夏天带娃避暑逛街",
+            "久光百货儿童区": "高端商场免费游乐区、亲子休息、顺便遛娃",
+            "星湖天街免费乐园": "室内滑梯组合、吹空调遛娃、无脑放电好去处",
+            "太湖蓝跑道": "太湖边骑行、看无敌湖景、吹湖风、自驾漫步",
+            "岱心湾": "拍过湖公路、假装在镰仓、太湖看落日、拍照圣地",
+            "明月湾树下": "看千年古樟树、太湖边发呆、听浪拍岸、享受宁静",
+            "渔洋山步道": "走免费上山路、看太湖大桥全景、户外爬山健身",
+            "灵岩山登山路": "苏州人专属健身房、爬山锻炼、山顶素面（收费）、免大门票",
+            "树山村": "看梨花（季节性）、木栈道徒步、感受乡村清新空气",
+            "各社区邻里中心": "玩滑梯、玩沙、参与社区活动、最稳妥的家门口遛娃",
+            "圆融天幕下": "看世界最长天幕、感受灯光秀、感受现代苏州繁华",
+            "月光码头": "湖边散步、看日落、爱乐之城同款氛围、拍照极佳",
+            "山姆": "玩耍购物",
+            "宜家": "玩耍购物"
+        }           
+            ,
+            "外地(江浙)": {
+                "江苏": [
+                    "南京市", "无锡市", "徐州市", "常州市", "苏州市", "南通市", "连云港市", "淮安市", "盐城市", "扬州市", "镇江市", "泰州市", "宿迁市",
+                    "常熟市", "昆山市", "太仓市", "张家港市", "宜兴市", "溧阳市", "江阴市", "丹阳市"
+                ],
+                "浙江": [
+                    "杭州市", "宁波市", "温州市", "嘉兴市", "湖州市", "绍兴市", "金华市", "衢州市", "舟山市", "台州市", "丽水市",
+                    "安吉县", "桐乡市(乌镇)", "嘉善县(西塘)", "德清县(莫干山)", "义乌市",
+                ]
+            }
+        };
+
+        function pickLocation(mode) {
+            const displayPlace = document.getElementById('result-place');
+            const displayTitle = document.getElementById('result-title');
+            const displayType = document.getElementById('result-type');
+            const displayActivities = document.getElementById('result-activities');
+            const activityBox = document.getElementById('activity-box');
+            const amapBtn = document.getElementById('amap-btn');
+            
+            let region = "";
+            let place = "";
+            let activities = "";
+
+            // 1. 区域逻辑
+            if (mode === 'today') {
+                const regions = ["小区周边", "苏州市内"];
+                region = regions[Math.floor(Math.random() * regions.length)];
+                displayTitle.innerText = "🏃 今日推荐";
+            } else {
+                const regions = Object.keys(locationPool);
+                region = regions[Math.floor(Math.random() * regions.length)];
+                displayTitle.innerText = "🚀 周末推荐";
+            }
+
+            // 2. 抽取逻辑
+            if (region === "外地(江浙)") {
+                const provinces = Object.keys(locationPool[region]);
+                const prov = provinces[Math.floor(Math.random() * provinces.length)];
+                place = locationPool[region][prov][Math.floor(Math.random() * locationPool[region][prov].length)];
+                activities = "跨城旅行，建议提前查好攻略和天气。";
+            } else {
+                const places = Object.keys(locationPool[region]);
+                place = places[Math.floor(Math.random() * places.length)];
+                activities = locationPool[region][place];
+            }
+
+            // 3. 更新UI
+            currentPlace = place;
+            displayPlace.innerText = place;
+            displayType.innerText = region;
+            displayActivities.innerText = activities;
+            
+            // 4. 显示控制与动画
+            activityBox.classList.remove('hidden');
+            amapBtn.classList.remove('hidden');
+            
+            // 重置动画
+            displayPlace.classList.remove('animate-fadeIn');
+            activityBox.classList.remove('animate-fadeIn');
+            void displayPlace.offsetWidth; 
+            displayPlace.classList.add('animate-fadeIn');
+            activityBox.classList.add('animate-fadeIn');
+        }
+
+        function openAMap() {
+            if (!currentPlace || currentPlace === "---") return;
+
+            // 使用高德官方通用 URI 协议 (支持自动唤起 App)
+            // 加上 t=0 代表地图标注模式，方便导航
+            const amapUrl = `https://uri.amap.com/search?keyword=${encodeURIComponent(currentPlace)}&center=120.619585,31.299379&view=map&src=mypage&coordinate=gaode&callnative=1`;
+
+            // 在微信中处理：提示用户
+            if (/MicroMessenger/i.test(navigator.userAgent)) {
+                alert("微信内无法直接唤起地图，请点击右上角选择“在浏览器中打开”即可一键导航。");
+            } else {
+                // 在普通浏览器中，直接跳转，高德协议会自动识别并询问是否打开 App
+                window.location.href = amapUrl;
+            }
+        }
+    </script>
+</body>
+</html>
